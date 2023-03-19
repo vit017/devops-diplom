@@ -2,16 +2,13 @@ terraform {
   required_providers {
     yandex = {
       source  = "yandex-cloud/yandex"
-      #version = "0.82.0"
     }
   }
 }
 
 provider "yandex" {
-  #token     = file("ya_token")
-  cloud_id  = "b1gb2fv47foenqc1r8pb"
-  folder_id = "b1g9fu0ivrlug47rtrmh" #folder2
-  #folder_id = "b1g54eujvl1abu6fhu8d" #default
+  cloud_id  = file("ya_cloud_id")
+  folder_id = file("ya_folder_id")
   zone      = var.zone
   service_account_key_file = file("authorized_key.json")
 }
@@ -73,15 +70,12 @@ resource "yandex_kubernetes_cluster" "my_cluster" {
   network_id = yandex_vpc_network.network.id
 
   master {
-    #version = "1.17"
     zonal {
       zone      = var.zone
       subnet_id = yandex_vpc_subnet.subnet.id
     }
 
     public_ip = true
-
-    #security_group_ids = ["${yandex_vpc_security_group.group1.id}"]
   }
 
   service_account_id      = file("src_acc_id")
@@ -93,7 +87,6 @@ resource "yandex_kubernetes_cluster" "my_cluster" {
   }
 
   release_channel = "RAPID"
-  #network_policy_provider = "CALICO"
 }
 
 # Configuring kubectl locally
@@ -160,7 +153,7 @@ resource "yandex_compute_instance" "srv" {
 
   boot_disk {
     initialize_params {
-      image_id = "fd8emvfmfoaordspe1jr"
+      image_id = "fd8emvfmfoaordspe1jr" #ubuntu 22.04
     }
   }
 

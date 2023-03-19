@@ -7,3 +7,5 @@ ya_token
 src_acc_id
 node_src_acc_id
 authorized_key.json
+ya_cloud_id
+ya_folder_id
