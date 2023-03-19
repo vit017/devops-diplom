@@ -6,3 +6,4 @@ terraform.tfstate.backup
 ya_token
 src_acc_id
 node_src_acc_id
+authorized_key.json
