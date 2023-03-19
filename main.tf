@@ -2,198 +2,43 @@ terraform {
   required_providers {
     yandex = {
       source  = "yandex-cloud/yandex"
-      version = "0.82.0"
+      #version = "0.82.0"
     }
   }
 }
 
 provider "yandex" {
-  token     = file("ya_token")
-  cloud_id  = "b1gtnh7joibadt3ak23b"
-  folder_id = "b1g2dbf4td7db1lu2hmr"
+  #token     = file("ya_token")
+  cloud_id  = "b1gb2fv47foenqc1r8pb"
+  folder_id = "b1g9fu0ivrlug47rtrmh" #folder2
+  #folder_id = "b1g54eujvl1abu6fhu8d" #default
   zone      = var.zone
+  service_account_key_file = file("authorized_key.json")
 }
 
-resource "yandex_compute_instance" "master" {
-  name        = "k8s-master"
-  platform_id = "standard-v1"
-  zone        = var.zone
-
-  resources {
-    cores  = 2
-    memory = 2
-  }
-
-  boot_disk {
-    initialize_params {
-      image_id = "fd8mpuj4fo4e4a4d4oh8"
-      size     = 20
-    }
-  }
-
-  network_interface {
-    subnet_id = "${yandex_vpc_subnet.my-subnet.id}"
-    nat       = true
-  }
-
-  metadata = {
-    ssh-keys = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
-  }
+resource "yandex_vpc_network" "network" {
+  name = "my-network"
 }
 
-resource "yandex_compute_instance" "node" {
-  name        = "k8s-node"
-  platform_id = "standard-v1"
-  zone        = var.zone
-
-  resources {
-    cores  = 2
-    memory = 4
-  }
-
-  boot_disk {
-    initialize_params {
-      image_id = "fd8mpuj4fo4e4a4d4oh8"
-      size     = 20
-    }
-  }
-
-  network_interface {
-    subnet_id = "${yandex_vpc_subnet.my-subnet.id}"
-    nat       = true
-  }
-
-  metadata = {
-    ssh-keys = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
-  }
+resource "yandex_vpc_subnet" "subnet" {
+  name           = "my-subnet"
+  zone           = "ru-central1-a"
+  network_id     = yandex_vpc_network.network.id
+  v4_cidr_blocks = ["10.0.1.0/24"]
 }
 
-resource "yandex_vpc_network" "lab-net" {
-  name = "lab-network"
+resource "yandex_iam_service_account" "node_sa" {
+  name = "my-node-sa"
 }
 
-resource "yandex_vpc_subnet" "my-subnet" {
-  v4_cidr_blocks = ["10.2.0.0/16"]
-  zone           = var.zone
-  network_id     = "${yandex_vpc_network.lab-net.id}"
-}
-
-resource "yandex_kubernetes_cluster" "zonal_cluster_resource_name" {
-  name        = "cluster-k8s"
-  description = "description"
-
-  network_id = "${yandex_vpc_network.lab-net.id}"
-
-  master {
-    version = "1.17"
-    zonal {
-      zone      = var.zone
-      subnet_id = "${yandex_vpc_subnet.my-subnet.id}"
-    }
-
-    public_ip = true
-
-    security_group_ids = ["${yandex_vpc_security_group.group1.id}"]
-
-    maintenance_policy {
-      auto_upgrade = true
-
-      maintenance_window {
-        start_time = "15:00"
-        duration   = "3h"
-      }
-    }
-  }
-
-  node_pool {
-    name = "default-pool"
-    node_count = 1
-    resources {
-      cores = 2
-      memory = 4
-    }
-  }
-
-  service_account_id      = file("src_acc_id")"${yandex_iam_service_account.service_account_resource_name.id}"
-  node_service_account_id = "${yandex_iam_service_account.node_service_account_resource_name.id}"
-
-  labels = {
-    my_key       = "my_value"
-    my_other_key = "my_other_value"
-  }
-}
-
-resource "yandex_kubernetes_node_group" "my_node_group" {
-  cluster_id  = "${yandex_kubernetes_cluster.zonal_cluster_resource_name.id}"
-  name        = "my_node_group"
-  description = "description"
-  version     = "1.17"
-
-  labels = {
-    "key" = "value"
-  }
-
-  instance_template {
-    platform_id = "standard-v2"
-
-    network_interface {
-      nat                = true
-      subnet_ids         = ["${yandex_vpc_subnet.my-subnet.id}"]
-    }
-
-    resources {
-      memory = 2
-      cores  = 2
-    }
-
-    boot_disk {
-      type = "network-hdd"
-      size = 64
-    }
-
-    scheduling_policy {
-      preemptible = false
-    }
-  }
-
-  scale_policy {
-    fixed_scale {
-      size = 1
-    }
-  }
-
-  allocation_policy {
-    location {
-      zone = var.zone
-    }
-  }
-
-  maintenance_policy {
-    auto_upgrade = true
-    auto_repair  = true
-
-    maintenance_window {
-      day        = "monday"
-      start_time = "15:00"
-      duration   = "3h"
-    }
-
-    maintenance_window {
-      day        = "friday"
-      start_time = "10:00"
-      duration   = "4h30m"
-    }
-  }
-}
-
-resource "yandex_vpc_network" "lab-net" {
-  name = "lab-network"
+output "node_service_account_id" {
+  value = yandex_iam_service_account.node_sa.id
 }
 
 resource "yandex_vpc_security_group" "group1" {
   name        = "My security group"
   description = "description for my security group"
-  network_id  = "${yandex_vpc_network.lab-net.id}"
+  network_id  = yandex_vpc_network.network.id
 
   labels = {
     my-label = "my-label-value"
@@ -220,5 +65,85 @@ resource "yandex_vpc_security_group" "group1" {
     v4_cidr_blocks = ["10.0.1.0/24"]
     from_port      = 8090
     to_port        = 8099
+  }
+}
+
+resource "yandex_kubernetes_cluster" "my_cluster" {
+  name       = "my-cluster"
+  network_id = yandex_vpc_network.network.id
+
+  master {
+    #version = "1.17"
+    zonal {
+      zone      = var.zone
+      subnet_id = yandex_vpc_subnet.subnet.id
+    }
+
+    public_ip = true
+
+    #security_group_ids = ["${yandex_vpc_security_group.group1.id}"]
+  }
+
+  service_account_id      = file("src_acc_id")
+  node_service_account_id = yandex_iam_service_account.node_sa.id
+
+  labels = {
+    my_key       = "my_value"
+    my_other_key = "my_other_value"
+  }
+
+  release_channel = "RAPID"
+  #network_policy_provider = "CALICO"
+}
+
+# Configuring kubectl locally
+resource "null_resource" "k8s_config" {
+  depends_on = [
+    yandex_kubernetes_cluster.my_cluster
+  ]
+  #provisioner "local-exec" {
+    #command = "yc managed-kubernetes cluster get-credentials --external --name my_cluster"
+  #}
+}
+
+resource "yandex_kubernetes_node_group" "my_node_group" {
+  cluster_id  = "${yandex_kubernetes_cluster.my_cluster.id}"
+  name        = "nodesgroup"
+  description = "description"
+  version     = "1.24"
+
+  labels = {
+    "key" = "value"
+  }
+
+  instance_template {
+    platform_id = "standard-v2"
+
+    network_interface {
+      nat                = true
+      subnet_ids         = ["${yandex_vpc_subnet.subnet.id}"]
+    }
+
+    resources {
+      memory = 2
+      cores  = 2
+    }
+
+    boot_disk {
+      type = "network-hdd"
+      size = 20
+    }
+  }
+
+  scale_policy {
+    fixed_scale {
+      size = 1
+    }
+  }
+
+  allocation_policy {
+    location {
+      zone = var.zone
+    }
   }
 }
