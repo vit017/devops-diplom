@@ -131,7 +131,7 @@ resource "yandex_kubernetes_node_group" "my_node_group" {
 
     boot_disk {
       type = "network-hdd"
-      size = 20
+      size = 30
     }
   }
 
@@ -145,5 +145,31 @@ resource "yandex_kubernetes_node_group" "my_node_group" {
     location {
       zone = var.zone
     }
+  }
+}
+
+resource "yandex_compute_instance" "srv" {
+  name        = "srv"
+  platform_id = "standard-v2"
+  zone        = var.zone
+
+  resources {
+    cores  = 2
+    memory = 2
+  }
+
+  boot_disk {
+    initialize_params {
+      image_id = "fd8emvfmfoaordspe1jr"
+    }
+  }
+
+  network_interface {
+    subnet_id = "${yandex_vpc_subnet.subnet.id}"
+    nat = true
+  }
+
+  metadata = {
+    ssh-keys = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
   }
 }
