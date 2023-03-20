@@ -89,18 +89,8 @@ resource "yandex_kubernetes_cluster" "my_cluster" {
   release_channel = "RAPID"
 }
 
-# Configuring kubectl locally
-resource "null_resource" "k8s_config" {
-  depends_on = [
-    yandex_kubernetes_cluster.my_cluster
-  ]
-  #provisioner "local-exec" {
-    #command = "yc managed-kubernetes cluster get-credentials --external --name my_cluster"
-  #}
-}
-
 resource "yandex_kubernetes_node_group" "my_node_group" {
-  cluster_id  = "${yandex_kubernetes_cluster.my_cluster.id}"
+  cluster_id  = yandex_kubernetes_cluster.my_cluster.id
   name        = "nodesgroup"
   description = "description"
   version     = "1.24"
@@ -126,6 +116,10 @@ resource "yandex_kubernetes_node_group" "my_node_group" {
       type = "network-hdd"
       size = 30
     }
+
+    metadata = {
+      ssh-keys = "ubuntu:${file("~/.ssh/id_ecdsa.pub")}"
+    }
   }
 
   scale_policy {
@@ -141,9 +135,9 @@ resource "yandex_kubernetes_node_group" "my_node_group" {
   }
 }
 
-resource "yandex_compute_instance" "srv" {
-  name        = "srv"
-  platform_id = "standard-v2"
+resource "yandex_compute_instance" "srv2" {
+  name        = "srv2"
+  platform_id = "standard-v3"
   zone        = var.zone
 
   resources {
@@ -158,11 +152,11 @@ resource "yandex_compute_instance" "srv" {
   }
 
   network_interface {
-    subnet_id = "${yandex_vpc_subnet.subnet.id}"
+    subnet_id = yandex_vpc_subnet.subnet.id
     nat = true
   }
 
   metadata = {
-    ssh-keys = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
+    ssh-keys = "ubuntu:${file("~/.ssh/id_ecdsa.pub")}"
   }
 }
