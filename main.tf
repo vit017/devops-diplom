@@ -28,10 +28,6 @@ resource "yandex_iam_service_account" "node_sa" {
   name = "my-node-sa"
 }
 
-output "node_service_account_id" {
-  value = yandex_iam_service_account.node_sa.id
-}
-
 resource "yandex_vpc_security_group" "group1" {
   name        = "My security group"
   description = "description for my security group"
